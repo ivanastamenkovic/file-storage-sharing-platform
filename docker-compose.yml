@@ -18,3 +18,26 @@ services:
     env_file: .env
     environment:
       PORT: "8083"
+    depends_on:
+      cassandra:
+        condition: service_healthy
+
+  cassandra:
+    image: cassandra:5
+    environment:
+      CASSANDRA_CLUSTER_NAME: ${CASSANDRA_CLUSTER_NAME:-drive-cluster}
+      MAX_HEAP_SIZE: ${CASSANDRA_MAX_HEAP:-512M}
+      HEAP_NEWSIZE: ${CASSANDRA_HEAP_NEWSIZE:-128M}
+    ports:
+      - "127.0.0.1:9042:9042"
+    volumes:
+      - cassandra-data:/var/lib/cassandra
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'describe keyspaces' > /dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+
+volumes:
+  cassandra-data:
