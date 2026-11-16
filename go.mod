@@ -3,6 +3,7 @@ module github.com/ivanastamenkovic/file-storage-sharing-platform
 go 1.27.3
 
 require (
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/klauspost/compress v1.20.3 // indirect
 	github.com/xdg-go/scram v1.4.0 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
