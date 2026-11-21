@@ -7,6 +7,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"strings"
 )
 
 func getenv(key, fallback string) string {
@@ -43,11 +44,42 @@ func proxyTo(target, prefix string) http.Handler {
 	return http.StripPrefix(prefix, p)
 }
 
+func parseOrigins(raw string) map[string]bool {
+	origins := map[string]bool{}
+	for _, o := range strings.Split(raw, ",") {
+		o = strings.TrimSpace(o)
+		if o != "" {
+			origins[o] = true
+		}
+	}
+	return origins
+}
+
+func withCORS(next http.Handler, allowed map[string]bool) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		if origin != "" && allowed[origin] {
+			h := w.Header()
+			h.Set("Access-Control-Allow-Origin", origin)
+			h.Add("Vary", "Origin")
+			h.Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+			h.Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+			h.Set("Access-Control-Max-Age", "600")
+		}
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	port := getenv("PORT", "8080")
 	usersURL := getenv("USERS_SERVICE_URL", "http://localhost:8081")
 	filesURL := getenv("FILES_SERVICE_URL", "http://localhost:8082")
 	notificationsURL := getenv("NOTIFICATIONS_SERVICE_URL", "http://localhost:8083")
+	origins := parseOrigins(getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173"))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
@@ -58,5 +90,5 @@ func main() {
 	mux.Handle("/api/notifications/", proxyTo(notificationsURL, "/api/notifications"))
 
 	log.Printf("gateway listening on :%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, mux))
+	log.Fatal(http.ListenAndServe(":"+port, withCORS(mux, origins)))
 }
