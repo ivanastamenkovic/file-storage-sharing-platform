@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -15,11 +16,32 @@ import (
 
 var schema string
 
+var userIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
+type notification struct {
+	ID        string    `json:"id"`
+	Type      string    `json:"type"`
+	Message   string    `json:"message"`
+	IsRead    bool      `json:"isRead"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type errorBody struct {
+	Error   string `json:"error"`
+	Message string `json:"message"`
+}
+
 func getenv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
 	return fallback
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
 }
 
 func connect() *gocql.Session {
@@ -61,6 +83,45 @@ func applySchema(session *gocql.Session) {
 	log.Print("cassandra schema is ready")
 }
 
+func listNotifications(session *gocql.Session) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID := r.Header.Get("X-User-Id")
+		if !userIDPattern.MatchString(userID) {
+			writeJSON(w, http.StatusUnauthorized, errorBody{
+				Error:   "UNAUTHORIZED",
+				Message: "Missing or invalid user identity",
+			})
+			return
+		}
+
+		iter := session.Query(
+			`SELECT id, type, message, is_read, created_at
+			 FROM notifications.notifications WHERE user_id = ?`,
+			userID,
+		).WithContext(r.Context()).Iter()
+
+		result := []notification{}
+		var (
+			id gocql.UUID
+			n  notification
+		)
+		for iter.Scan(&id, &n.Type, &n.Message, &n.IsRead, &n.CreatedAt) {
+			n.ID = id.String()
+			result = append(result, n)
+		}
+		if err := iter.Close(); err != nil {
+			log.Printf("failed to load notifications: %v", err)
+			writeJSON(w, http.StatusInternalServerError, errorBody{
+				Error:   "INTERNAL_ERROR",
+				Message: "Could not load notifications",
+			})
+			return
+		}
+
+		writeJSON(w, http.StatusOK, result)
+	}
+}
+
 func main() {
 	port := getenv("PORT", "8083")
 
@@ -70,9 +131,9 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "service": "notifications"})
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "service": "notifications"})
 	})
+	mux.HandleFunc("GET /{$}", listNotifications(session))
 
 	log.Printf("notifications service listening on :%s", port)
 	log.Fatal(http.ListenAndServe(":"+port, mux))
