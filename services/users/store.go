@@ -18,6 +18,7 @@ const (
 
 var (
 	ErrEmailTaken   = errors.New("email already registered")
+	ErrUserNotFound = errors.New("user not found")
 	ErrInvalidToken = errors.New("invalid confirmation token")
 	ErrTokenExpired = errors.New("confirmation token expired")
 )
@@ -93,6 +94,26 @@ func (s *userStore) Create(ctx context.Context, u *User) error {
 		return ErrEmailTaken
 	}
 	return err
+}
+
+func (s *userStore) findOne(ctx context.Context, filter bson.D) (*User, error) {
+	var u User
+	err := s.users.FindOne(ctx, filter).Decode(&u)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, ErrUserNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+func (s *userStore) FindByEmail(ctx context.Context, email string) (*User, error) {
+	return s.findOne(ctx, bson.D{{Key: "email", Value: email}})
+}
+
+func (s *userStore) FindByID(ctx context.Context, id string) (*User, error) {
+	return s.findOne(ctx, bson.D{{Key: "_id", Value: id}})
 }
 
 func (s *userStore) Delete(ctx context.Context, id string) error {

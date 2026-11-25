@@ -56,3 +56,15 @@ func (m *smtpMailer) SendConfirmation(to, firstName, link string, ttl time.Durat
 	)
 	return m.send(to, "Confirm your account", body)
 }
+
+func (m *smtpMailer) SendLoginCode(to, firstName, code string, ttl time.Duration) error {
+	body := fmt.Sprintf(
+		"Hi %s,\r\n\r\n"+
+			"Your one-time login code is:\r\n\r\n"+
+			"    %s\r\n\r\n"+
+			"It expires in %s and can be used only once.\r\n\r\n"+
+			"If you did not try to sign in, someone may know your password. Consider changing it.\r\n",
+		firstName, code, ttl,
+	)
+	return m.send(to, "Your login code: "+code, body)
+}

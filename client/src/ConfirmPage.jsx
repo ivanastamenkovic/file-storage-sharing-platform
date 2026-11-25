@@ -39,7 +39,7 @@ export default function ConfirmPage() {
           </div>
           <h2>Account confirmed</h2>
           <p role="status" className="auth-subtitle">{state.message}</p>
-          <a href="/" className="btn primary block">Continue</a>
+          <a href="/login" className="btn primary block">Sign in</a>
         </>
       )}
       {state.status === 'error' && (
