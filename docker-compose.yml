@@ -9,7 +9,21 @@ services:
     ports:
       - "8080:8080"
     depends_on:
+      - users
       - notifications
+
+  users:
+    build:
+      context: .
+      dockerfile: services/users/Dockerfile
+    env_file: .env
+    environment:
+      PORT: "8081"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
 
   notifications:
     build:
@@ -39,5 +53,24 @@ services:
       retries: 20
       start_period: 60s
 
+  mongo:
+    image: mongo:8
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "127.0.0.1:8025:8025"
+
 volumes:
   cassandra-data:
+  mongo-data:
