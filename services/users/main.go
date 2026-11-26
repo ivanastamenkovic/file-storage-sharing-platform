@@ -138,6 +138,7 @@ func main() {
 	mux.HandleFunc("POST /login", auth.login)
 	mux.HandleFunc("POST /login/verify", auth.verify)
 	mux.HandleFunc("POST /password-reset/request", resetSvc.request)
+	mux.HandleFunc("POST /password-reset/confirm", resetSvc.confirm)
 
 	log.Printf("users service listening on :%s", port)
 	log.Fatal(http.ListenAndServe(":"+port, mux))
