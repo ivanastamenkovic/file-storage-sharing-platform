@@ -97,3 +97,18 @@ func (s *authTokenStore) Consume(ctx context.Context, tokenHash, tokenType strin
 	}
 	return "", err
 }
+
+func (s *authTokenStore) CreatedSince(ctx context.Context, userID, tokenType string, since time.Time) (bool, error) {
+	err := s.tokens.FindOne(ctx, bson.D{
+		{Key: "userId", Value: userID},
+		{Key: "type", Value: tokenType},
+		{Key: "createdAt", Value: bson.D{{Key: "$gte", Value: since}}},
+	}).Err()
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
