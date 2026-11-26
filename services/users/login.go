@@ -21,8 +21,7 @@ type loginService struct {
 	jwtSecret      []byte
 	sessionTTL     time.Duration
 	passwordMaxAge time.Duration
-	// Compared against when the email is unknown, so a missing account
-	// takes as long to reject as a wrong password.
+	passwordExpiredLockout time.Duration
 	dummyHash []byte
 }
 
