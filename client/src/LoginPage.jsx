@@ -100,6 +100,9 @@ function CredentialsStep({ onChallenge }) {
         </button>
       </form>
       <p className="auth-footer">
+        <a href="/forgot-password">Forgot password?</a>
+      </p>
+      <p className="auth-footer">
         No account yet? <a href="/register">Create one</a>
       </p>
     </>
