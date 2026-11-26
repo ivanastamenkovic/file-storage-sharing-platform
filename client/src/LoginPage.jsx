@@ -3,6 +3,13 @@ import { login, verifyLoginCode } from './api'
 import { saveSession } from './session'
 import { MailIcon } from './icons'
 
+const MAGIC_LINK_PATH = '/magic-link'
+
+function formatBlockedUntil(value) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date.toLocaleString()
+}
+
 function TextField({ id, label, error, ...props }) {
   return (
     <div className="field">
@@ -45,7 +52,7 @@ function CredentialsStep({ onChallenge }) {
       const res = await login(email.trim(), password)
       onChallenge({ ...res, email: email.trim().toLowerCase() })
     } catch (err) {
-      setError({ message: err.message, code: err.code })
+      setError({ message: err.message, code: err.code, blockedUntil: err.body?.blockedUntil })
     } finally {
       setSubmitting(false)
     }
@@ -88,10 +95,21 @@ function CredentialsStep({ onChallenge }) {
           </div>
         </div>
 
-        {error && (
-          <p className="form-alert" role="alert">
-            {error.message}
-          </p>
+        {error?.code === 'PASSWORD_EXPIRED' ? (
+          <div className="expired-alert" role="alert">
+            <strong>Your password has expired.</strong>{' '}
+            {formatBlockedUntil(error.blockedUntil)
+              ? `Sign-in is blocked until ${formatBlockedUntil(error.blockedUntil)}.`
+              : 'Sign-in is temporarily blocked.'}{' '}
+            You can <a href="/forgot-password">reset your password</a> or{' '}
+            <a href={MAGIC_LINK_PATH}>sign in with a magic link</a>.
+          </div>
+        ) : (
+          error && (
+            <p className="form-alert" role="alert">
+              {error.message}
+            </p>
+          )
         )}
 
         <button type="submit" className="btn primary block" disabled={submitting}>

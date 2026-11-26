@@ -14,11 +14,12 @@ export async function fetchNotifications() {
 }
 
 export class ApiError extends Error {
-  constructor(message, { status, code, fields } = {}) {
+  constructor(message, { status, code, fields, body } = {}) {
     super(message)
     this.status = status
     this.code = code
     this.fields = fields ?? {}
+    this.body = body ?? null
   }
 }
 
@@ -50,6 +51,7 @@ async function requestJSON(url, { method = 'GET', body, token } = {}, fallbackMe
       status: res.status,
       code: data?.error,
       fields: data?.fields,
+      body: data,
     })
   }
   return data
