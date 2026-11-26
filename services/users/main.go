@@ -55,6 +55,14 @@ func main() {
 	if err != nil || sessionTTL <= 0 {
 		log.Fatalf("invalid SESSION_TTL: %v", err)
 	}
+	passwordResetTTL, err := time.ParseDuration(getenv("PASSWORD_RESET_TOKEN_TTL", "15m"))
+	if err != nil || passwordResetTTL <= 0 {
+		log.Fatalf("invalid PASSWORD_RESET_TOKEN_TTL: %v", err)
+	}
+	authEmailCooldown, err := time.ParseDuration(getenv("AUTH_EMAIL_COOLDOWN", "60s"))
+	if err != nil || authEmailCooldown < 0 {
+		log.Fatalf("invalid AUTH_EMAIL_COOLDOWN: %v", err)
+	}
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if len(jwtSecret) < 32 {
 		log.Fatal("JWT_SECRET must be set and at least 32 characters long")
@@ -78,9 +86,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not prepare login challenges collection: %v", err)
 	}
-	
+
 	tokenCtx, tokenCancel := context.WithTimeout(context.Background(), 15*time.Second)
-	_, err = newAuthTokenStore(tokenCtx, db)
+	_, err = newAuthTokenStore(tokenCtx, db) // used by password reset and magic link
 	tokenCancel()
 	if err != nil {
 		log.Fatalf("could not prepare auth tokens collection: %v", err)
@@ -111,6 +119,8 @@ func main() {
 		sessionTTL:     sessionTTL,
 		dummyHash:      dummyHash,
 	}
+
+	log.Printf("password reset link valid for %s, email cooldown %s", passwordResetTTL, authEmailCooldown)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {

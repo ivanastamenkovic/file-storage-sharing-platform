@@ -68,3 +68,15 @@ func (m *smtpMailer) SendLoginCode(to, firstName, code string, ttl time.Duration
 	)
 	return m.send(to, "Your login code: "+code, body)
 }
+
+func (m *smtpMailer) SendPasswordReset(to, firstName, link string, ttl time.Duration) error {
+	body := fmt.Sprintf(
+		"Hi %s,\r\n\r\n"+
+			"We received a request to reset the password of your account. Choose a new password by opening this link:\r\n\r\n"+
+			"%s\r\n\r\n"+
+			"The link is valid for %s and can be used only once.\r\n\r\n"+
+			"If you did not request this, you can ignore this email. Your password will not change.\r\n",
+		firstName, link, ttl,
+	)
+	return m.send(to, "Reset your password", body)
+}
