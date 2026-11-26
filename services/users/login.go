@@ -92,11 +92,21 @@ func (s *loginService) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Only reported after a correct password, so it reveals nothing to a stranger.
 	if user.Status != StatusActive {
 		writeJSON(w, http.StatusForbidden, errorBody{
 			Error:   "ACCOUNT_NOT_CONFIRMED",
 			Message: "Your account is not confirmed yet. Check your email for the confirmation link.",
+		})
+		return
+	}
+
+	now := time.Now().UTC()
+	if blockedUntil, blocked := s.expiredLockoutEnd(user, now); blocked {
+		log.Printf("login blocked for user %s: password expired", user.ID)
+		writeJSON(w, http.StatusForbidden, map[string]any{
+			"error":        "PASSWORD_EXPIRED",
+			"message":      "Your password has expired and sign-in is temporarily blocked. Reset your password or recover your account with a magic link.",
+			"blockedUntil": blockedUntil,
 		})
 		return
 	}
@@ -112,7 +122,7 @@ func (s *loginService) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	now := time.Now().UTC()
+	now = time.Now().UTC()
 	if err := s.challenges.Create(r.Context(), &loginChallenge{
 		ID:        challengeID,
 		UserID:    user.ID,
@@ -216,4 +226,16 @@ func (s *loginService) verify(w http.ResponseWriter, r *http.Request) {
 			LastName:  user.LastName,
 		},
 	})
+}
+
+func (s *loginService) expiredLockoutEnd(u *User, now time.Time) (time.Time, bool) {
+	if s.passwordMaxAge <= 0 || s.passwordExpiredLockout <= 0 {
+		return time.Time{}, false
+	}
+	expiresAt := u.PasswordSetAt().Add(s.passwordMaxAge)
+	blockedUntil := expiresAt.Add(s.passwordExpiredLockout)
+	if now.Before(expiresAt) || !now.Before(blockedUntil) {
+		return time.Time{}, false
+	}
+	return blockedUntil, true
 }
