@@ -21,6 +21,17 @@ var (
 		Code:    "FOLDER_ALREADY_EXISTS",
 		Message: "A folder with this name already exists in the parent folder",
 	}
+
+	ErrUnauthorized = &AppError{
+		Status:  401,
+		Code:    "UNAUTHORIZED",
+		Message: "Authentication required",
+	}
+	ErrInvalidRequest = &AppError{
+		Status:  400,
+		Code:    "INVALID_REQUEST",
+		Message: "Invalid request body",
+	}
 )
 
 func invalidName(msg string) *AppError {
