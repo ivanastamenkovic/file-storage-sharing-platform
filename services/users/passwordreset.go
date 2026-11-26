@@ -9,6 +9,8 @@ import (
 	"net/mail"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 const passwordResetGenericMessage = "If an account with this email exists, we sent a link to reset the password."
@@ -24,6 +26,12 @@ type passwordResetService struct {
 
 type passwordResetRequest struct {
 	Email string `json:"email"`
+}
+
+type passwordResetConfirmRequest struct {
+	Token           string `json:"token"`
+	Password        string `json:"password"`
+	ConfirmPassword string `json:"confirmPassword"`
 }
 
 func (s *passwordResetService) request(w http.ResponseWriter, r *http.Request) {
@@ -107,4 +115,80 @@ func (s *passwordResetService) process(email string) {
 		return
 	}
 	log.Printf("password reset link sent to user %s", user.ID)
+}
+
+func (s *passwordResetService) confirm(w http.ResponseWriter, r *http.Request) {
+	var req passwordResetConfirmRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxRequestBodyLen)).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, errorBody{Error: "INVALID_BODY", Message: "Request body must be valid JSON"})
+		return
+	}
+
+	token := strings.TrimSpace(req.Token)
+	if token == "" {
+		writeJSON(w, http.StatusBadRequest, errorBody{Error: "INVALID_BODY", Message: "A reset token is required"})
+		return
+	}
+
+	fields := map[string]string{}
+	if req.Password == "" {
+		fields["password"] = "Password is required"
+	} else if msg := passwordWeakness(req.Password); msg != "" {
+		fields["password"] = msg
+	}
+	if req.ConfirmPassword == "" {
+		fields["confirmPassword"] = "Please confirm your password"
+	} else if req.Password != req.ConfirmPassword {
+		fields["confirmPassword"] = "Passwords do not match"
+	}
+	if len(fields) > 0 {
+		writeJSON(w, http.StatusBadRequest, validationErrorBody{
+			Error:   "VALIDATION_ERROR",
+			Message: "Some fields are invalid",
+			Fields:  fields,
+		})
+		return
+	}
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		internalError(w, "hash password", err)
+		return
+	}
+
+	now := time.Now().UTC()
+	userID, err := s.tokens.Consume(r.Context(), hashToken(token), TokenPasswordReset, now)
+	switch {
+	case errors.Is(err, ErrAuthTokenInvalid):
+		log.Printf("password reset: invalid or used token")
+		writeJSON(w, http.StatusBadRequest, errorBody{
+			Error:   "INVALID_TOKEN",
+			Message: "This reset link is invalid or has already been used",
+		})
+		return
+	case errors.Is(err, ErrAuthTokenExpired):
+		log.Printf("password reset: expired token")
+		writeJSON(w, http.StatusGone, errorBody{
+			Error:   "TOKEN_EXPIRED",
+			Message: "This reset link has expired",
+		})
+		return
+	case err != nil:
+		internalError(w, "consume reset token", err)
+		return
+	}
+
+	if err := s.users.SetPassword(r.Context(), userID, string(passwordHash), now); err != nil {
+		internalError(w, "set password", err)
+		return
+	}
+
+	if err := s.tokens.InvalidateUnused(r.Context(), userID, TokenPasswordReset); err != nil {
+		log.Printf("password reset: cleanup tokens for user %s: %v", userID, err)
+	}
+
+	log.Printf("password reset completed for user %s", userID)
+	writeJSON(w, http.StatusOK, map[string]string{
+		"message": "Your password has been changed. You can now sign in.",
+	})
 }
