@@ -29,17 +29,28 @@ type confirmation struct {
 }
 
 type User struct {
-	ID                string        `bson:"_id"`
-	FirstName         string        `bson:"firstName"`
-	LastName          string        `bson:"lastName"`
-	Email             string        `bson:"email"`
-	PasswordHash      string        `bson:"passwordHash"`
-	Status            string        `bson:"status"`
-	StorageQuotaBytes int64         `bson:"storageQuotaBytes"`
-	StorageUsedBytes  int64         `bson:"storageUsedBytes"`
-	CreatedAt         time.Time     `bson:"createdAt"`
-	ActivatedAt       *time.Time    `bson:"activatedAt,omitempty"`
-	Confirmation      *confirmation `bson:"confirmation,omitempty"`
+	ID                 string        `bson:"_id"`
+	FirstName          string        `bson:"firstName"`
+	LastName           string        `bson:"lastName"`
+	Email              string        `bson:"email"`
+	PasswordHash       string        `bson:"passwordHash"`
+	Status             string        `bson:"status"`
+	StorageQuotaBytes  int64         `bson:"storageQuotaBytes"`
+	StorageUsedBytes   int64         `bson:"storageUsedBytes"`
+	CreatedAt          time.Time     `bson:"createdAt"`
+	PasswordChangedAt  time.Time     `bson:"passwordChangedAt"`
+	MustChangePassword bool          `bson:"mustChangePassword"`
+	ActivatedAt        *time.Time    `bson:"activatedAt,omitempty"`
+	Confirmation       *confirmation `bson:"confirmation,omitempty"`
+}
+
+// PasswordSetAt returns when the current password was set. Accounts created
+// before this field existed fall back to their creation time.
+func (u *User) PasswordSetAt() time.Time {
+	if u.PasswordChangedAt.IsZero() {
+		return u.CreatedAt
+	}
+	return u.PasswordChangedAt
 }
 
 type userStore struct {
@@ -119,6 +130,26 @@ func (s *userStore) FindByID(ctx context.Context, id string) (*User, error) {
 func (s *userStore) Delete(ctx context.Context, id string) error {
 	_, err := s.users.DeleteOne(ctx, bson.D{{Key: "_id", Value: id}})
 	return err
+}
+
+// SetPassword stores a new password hash, records when it was changed and
+// clears the "must change password" flag.
+func (s *userStore) SetPassword(ctx context.Context, id, passwordHash string, now time.Time) error {
+	res, err := s.users.UpdateOne(ctx,
+		bson.D{{Key: "_id", Value: id}},
+		bson.D{{Key: "$set", Value: bson.D{
+			{Key: "passwordHash", Value: passwordHash},
+			{Key: "passwordChangedAt", Value: now},
+			{Key: "mustChangePassword", Value: false},
+		}}},
+	)
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return ErrUserNotFound
+	}
+	return nil
 }
 
 // Activate moves a pending account to ACTIVE if the token matches and has not expired.
