@@ -67,12 +67,16 @@ func main() {
 	if err != nil || passwordMinAge < 0 {
 		log.Fatalf("invalid PASSWORD_MIN_AGE: %v", err)
 	}
-	passwordMaxAge, err := time.ParseDuration(getenv("PASSWORD_MAX_AGE", "2160h"))
+	passwordMaxAge, err := time.ParseDuration(getenv("PASSWORD_MAX_AGE", "1440h"))
 	if err != nil || passwordMaxAge < 0 {
 		log.Fatalf("invalid PASSWORD_MAX_AGE: %v", err)
 	}
 	if passwordMaxAge > 0 && passwordMaxAge <= passwordMinAge {
 		log.Fatal("PASSWORD_MAX_AGE must be longer than PASSWORD_MIN_AGE")
+	}
+	passwordExpiredLockout, err := time.ParseDuration(getenv("PASSWORD_EXPIRED_LOCKOUT", "24h"))
+	if err != nil || passwordExpiredLockout < 0 {
+		log.Fatalf("invalid PASSWORD_EXPIRED_LOCKOUT: %v", err)
 	}
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if len(jwtSecret) < 32 {
@@ -130,6 +134,7 @@ func main() {
 		jwtSecret:      []byte(jwtSecret),
 		sessionTTL:     sessionTTL,
 		passwordMaxAge: passwordMaxAge,
+		passwordExpiredLockout: passwordExpiredLockout,
 		dummyHash:      dummyHash,
 	}
 	resetSvc := &passwordResetService{
