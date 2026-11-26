@@ -58,3 +58,11 @@ export function registerUser(form) {
 export function confirmAccount(token) {
   return postJSON('/api/users/confirm', { token }, 'Could not confirm your account')
 }
+
+export function login(email, password) {
+  return postJSON('/api/users/login', { email, password }, 'Could not sign in')
+}
+
+export function verifyLoginCode(challengeId, otp) {
+  return postJSON('/api/users/login/verify', { challengeId, otp }, 'Could not verify the code')
+}
