@@ -88,7 +88,7 @@ func main() {
 	}
 
 	tokenCtx, tokenCancel := context.WithTimeout(context.Background(), 15*time.Second)
-	_, err = newAuthTokenStore(tokenCtx, db) // used by password reset and magic link
+	authTokens, err := newAuthTokenStore(tokenCtx, db)
 	tokenCancel()
 	if err != nil {
 		log.Fatalf("could not prepare auth tokens collection: %v", err)
@@ -101,11 +101,12 @@ func main() {
 		os.Getenv("SMTP_USERNAME"),
 		os.Getenv("SMTP_PASSWORD"),
 	)
+	appBaseURL := strings.TrimRight(getenv("APP_BASE_URL", "http://localhost:5173"), "/")
 
 	svc := &registrationService{
 		store:        store,
 		mailer:       mailer,
-		appBaseURL:   strings.TrimRight(getenv("APP_BASE_URL", "http://localhost:5173"), "/"),
+		appBaseURL:   appBaseURL,
 		defaultQuota: quota,
 		tokenTTL:     tokenTTL,
 	}
@@ -119,8 +120,14 @@ func main() {
 		sessionTTL:     sessionTTL,
 		dummyHash:      dummyHash,
 	}
-
-	log.Printf("password reset link valid for %s, email cooldown %s", passwordResetTTL, authEmailCooldown)
+	resetSvc := &passwordResetService{
+		users:      store,
+		tokens:     authTokens,
+		mailer:     mailer,
+		appBaseURL: appBaseURL,
+		tokenTTL:   passwordResetTTL,
+		cooldown:   authEmailCooldown,
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
@@ -130,6 +137,7 @@ func main() {
 	mux.HandleFunc("POST /confirm", svc.confirm)
 	mux.HandleFunc("POST /login", auth.login)
 	mux.HandleFunc("POST /login/verify", auth.verify)
+	mux.HandleFunc("POST /password-reset/request", resetSvc.request)
 
 	log.Printf("users service listening on :%s", port)
 	log.Fatal(http.ListenAndServe(":"+port, mux))
