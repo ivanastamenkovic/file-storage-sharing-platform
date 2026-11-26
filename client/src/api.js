@@ -66,3 +66,15 @@ export function login(email, password) {
 export function verifyLoginCode(challengeId, otp) {
   return postJSON('/api/users/login/verify', { challengeId, otp }, 'Could not verify the code')
 }
+
+export function requestPasswordReset(email) {
+  return postJSON('/api/users/password-reset/request', { email }, 'Could not send the reset link')
+}
+
+export function confirmPasswordReset(token, password, confirmPassword) {
+  return postJSON(
+    '/api/users/password-reset/confirm',
+    { token, password, confirmPassword },
+    'Could not reset your password',
+  )
+}

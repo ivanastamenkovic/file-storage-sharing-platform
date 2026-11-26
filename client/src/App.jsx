@@ -2,6 +2,8 @@ import NotificationsPage from './NotificationsPage'
 import RegisterPage from './RegisterPage'
 import ConfirmPage from './ConfirmPage'
 import LoginPage from './LoginPage'
+import ForgotPasswordPage from './ForgotPasswordPage'
+import ResetPasswordPage from './ResetPasswordPage'
 import { CloudIcon } from './icons'
 import { clearSession, getSession } from './session'
 
@@ -9,6 +11,8 @@ const ROUTES = {
   '/register': RegisterPage,
   '/confirm': ConfirmPage,
   '/login': LoginPage,
+  '/forgot-password': ForgotPasswordPage,
+  '/reset-password': ResetPasswordPage,
 }
 
 export default function App() {
