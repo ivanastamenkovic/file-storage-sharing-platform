@@ -205,6 +205,7 @@ func (s *registrationService) register(w http.ResponseWriter, r *http.Request) {
 		StorageQuotaBytes: s.defaultQuota,
 		StorageUsedBytes:  0,
 		CreatedAt:         now,
+		PasswordChangedAt: now,
 		Confirmation:      &confirmation{TokenHash: tokenHash, ExpiresAt: now.Add(s.tokenTTL)},
 	}
 
