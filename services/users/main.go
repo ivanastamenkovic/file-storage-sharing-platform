@@ -78,6 +78,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not prepare login challenges collection: %v", err)
 	}
+	
+	tokenCtx, tokenCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	_, err = newAuthTokenStore(tokenCtx, db)
+	tokenCancel()
+	if err != nil {
+		log.Fatalf("could not prepare auth tokens collection: %v", err)
+	}
 
 	mailer := newSMTPMailer(
 		getenv("SMTP_HOST", "localhost"),
