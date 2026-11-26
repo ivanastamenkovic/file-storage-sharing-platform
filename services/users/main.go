@@ -63,6 +63,17 @@ func main() {
 	if err != nil || authEmailCooldown < 0 {
 		log.Fatalf("invalid AUTH_EMAIL_COOLDOWN: %v", err)
 	}
+	passwordMinAge, err := time.ParseDuration(getenv("PASSWORD_MIN_AGE", "24h"))
+	if err != nil || passwordMinAge < 0 {
+		log.Fatalf("invalid PASSWORD_MIN_AGE: %v", err)
+	}
+	passwordMaxAge, err := time.ParseDuration(getenv("PASSWORD_MAX_AGE", "2160h"))
+	if err != nil || passwordMaxAge < 0 {
+		log.Fatalf("invalid PASSWORD_MAX_AGE: %v", err)
+	}
+	if passwordMaxAge > 0 && passwordMaxAge <= passwordMinAge {
+		log.Fatal("PASSWORD_MAX_AGE must be longer than PASSWORD_MIN_AGE")
+	}
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if len(jwtSecret) < 32 {
 		log.Fatal("JWT_SECRET must be set and at least 32 characters long")
@@ -118,6 +129,7 @@ func main() {
 		otpMaxAttempts: otpMaxAttempts,
 		jwtSecret:      []byte(jwtSecret),
 		sessionTTL:     sessionTTL,
+		passwordMaxAge: passwordMaxAge,
 		dummyHash:      dummyHash,
 	}
 	resetSvc := &passwordResetService{
@@ -127,6 +139,12 @@ func main() {
 		appBaseURL: appBaseURL,
 		tokenTTL:   passwordResetTTL,
 		cooldown:   authEmailCooldown,
+	}
+	changeSvc := &passwordChangeService{
+		users:     store,
+		jwtSecret: []byte(jwtSecret),
+		minAge:    passwordMinAge,
+		maxAge:    passwordMaxAge,
 	}
 
 	mux := http.NewServeMux()
@@ -139,6 +157,8 @@ func main() {
 	mux.HandleFunc("POST /login/verify", auth.verify)
 	mux.HandleFunc("POST /password-reset/request", resetSvc.request)
 	mux.HandleFunc("POST /password-reset/confirm", resetSvc.confirm)
+	mux.HandleFunc("GET /password/status", changeSvc.getStatus)
+	mux.HandleFunc("POST /password/change", changeSvc.change)
 
 	log.Printf("users service listening on :%s", port)
 	log.Fatal(http.ListenAndServe(":"+port, mux))

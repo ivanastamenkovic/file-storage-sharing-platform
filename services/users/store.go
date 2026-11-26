@@ -53,6 +53,15 @@ func (u *User) PasswordSetAt() time.Time {
 	return u.PasswordChangedAt
 }
 
+// PasswordExpired reports whether the user has to pick a new password before
+// continuing. A maxAge of zero disables periodic expiry.
+func (u *User) PasswordExpired(now time.Time, maxAge time.Duration) bool {
+	if u.MustChangePassword {
+		return true
+	}
+	return maxAge > 0 && !now.Before(u.PasswordSetAt().Add(maxAge))
+}
+
 type userStore struct {
 	users *mongo.Collection
 }
