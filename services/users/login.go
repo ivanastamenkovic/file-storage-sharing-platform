@@ -20,6 +20,7 @@ type loginService struct {
 	otpMaxAttempts int
 	jwtSecret      []byte
 	sessionTTL     time.Duration
+	passwordMaxAge time.Duration
 	// Compared against when the email is unknown, so a missing account
 	// takes as long to reject as a wrong password.
 	dummyHash []byte
@@ -49,10 +50,11 @@ type sessionUser struct {
 }
 
 type sessionResponse struct {
-	Token     string      `json:"token"`
-	TokenType string      `json:"tokenType"`
-	ExpiresAt time.Time   `json:"expiresAt"`
-	User      sessionUser `json:"user"`
+	Token              string      `json:"token"`
+	TokenType          string      `json:"tokenType"`
+	ExpiresAt          time.Time   `json:"expiresAt"`
+	MustChangePassword bool        `json:"mustChangePassword"`
+	User               sessionUser `json:"user"`
 }
 
 type sessionClaims struct {
@@ -192,7 +194,7 @@ func (s *loginService) verify(w http.ResponseWriter, r *http.Request) {
 		Email: user.Email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   user.ID,
-			Issuer:    "users-service",
+			Issuer:    sessionIssuer,
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			ID:        jti,
@@ -204,9 +206,10 @@ func (s *loginService) verify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, sessionResponse{
-		Token:     token,
-		TokenType: "Bearer",
-		ExpiresAt: expiresAt,
+		Token:              token,
+		TokenType:          "Bearer",
+		ExpiresAt:          expiresAt,
+		MustChangePassword: user.PasswordExpired(now, s.passwordMaxAge),
 		User: sessionUser{
 			ID:        user.ID,
 			Email:     user.Email,

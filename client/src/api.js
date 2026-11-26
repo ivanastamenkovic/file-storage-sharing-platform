@@ -22,13 +22,17 @@ export class ApiError extends Error {
   }
 }
 
-async function postJSON(url, body, fallbackMessage) {
+async function requestJSON(url, { method = 'GET', body, token } = {}, fallbackMessage) {
+  const headers = {}
+  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  if (token) headers.Authorization = `Bearer ${token}`
+
   let res
   try {
     res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
     })
   } catch {
     throw new ApiError('Could not reach the server, check your connection')
@@ -49,6 +53,10 @@ async function postJSON(url, body, fallbackMessage) {
     })
   }
   return data
+}
+
+function postJSON(url, body, fallbackMessage) {
+  return requestJSON(url, { method: 'POST', body }, fallbackMessage)
 }
 
 export function registerUser(form) {
@@ -76,5 +84,17 @@ export function confirmPasswordReset(token, password, confirmPassword) {
     '/api/users/password-reset/confirm',
     { token, password, confirmPassword },
     'Could not reset your password',
+  )
+}
+
+export function fetchPasswordStatus(token) {
+  return requestJSON('/api/users/password/status', { token }, 'Could not load your password details')
+}
+
+export function changePassword(token, form) {
+  return requestJSON(
+    '/api/users/password/change',
+    { method: 'POST', body: form, token },
+    'Could not change your password',
   )
 }

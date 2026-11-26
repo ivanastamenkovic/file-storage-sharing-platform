@@ -4,8 +4,11 @@ import ConfirmPage from './ConfirmPage'
 import LoginPage from './LoginPage'
 import ForgotPasswordPage from './ForgotPasswordPage'
 import ResetPasswordPage from './ResetPasswordPage'
+import ChangePasswordPage from './ChangePasswordPage'
 import { CloudIcon } from './icons'
 import { clearSession, getSession } from './session'
+
+const CHANGE_PASSWORD_PATH = '/change-password'
 
 const ROUTES = {
   '/register': RegisterPage,
@@ -13,15 +16,26 @@ const ROUTES = {
   '/login': LoginPage,
   '/forgot-password': ForgotPasswordPage,
   '/reset-password': ResetPasswordPage,
+  [CHANGE_PASSWORD_PATH]: ChangePasswordPage,
 }
 
 export default function App() {
   const path = window.location.pathname
-  const Page = ROUTES[path] ?? NotificationsPage
   const session = getSession()
+  const passwordExpired = Boolean(session?.mustChangePassword)
+  const Page = passwordExpired ? ChangePasswordPage : (ROUTES[path] ?? NotificationsPage)
 
-  const nav = session
-    ? [{ href: '/', label: 'Notifications' }]
+  if (passwordExpired && path !== CHANGE_PASSWORD_PATH) {
+    window.history.replaceState(null, '', CHANGE_PASSWORD_PATH)
+  }
+
+  const nav = passwordExpired
+    ? []
+    : session
+    ? [
+        { href: '/', label: 'Notifications' },
+        { href: CHANGE_PASSWORD_PATH, label: 'Change password' },
+      ]
     : [
         { href: '/login', label: 'Sign in' },
         { href: '/register', label: 'Register' },
