@@ -19,6 +19,11 @@ const ROUTES = {
   [CHANGE_PASSWORD_PATH]: ChangePasswordPage,
 }
 
+function handleSessionExpired() {
+  clearSession()
+  window.location.assign('/login')
+}
+
 export default function App() {
   const path = window.location.pathname
   const session = getSession()
@@ -41,11 +46,6 @@ export default function App() {
         { href: '/register', label: 'Register' },
       ]
 
-  const signOut = () => {
-    clearSession()
-    window.location.assign('/login')
-  }
-
   return (
     <>
       <header className="app-bar">
@@ -67,7 +67,7 @@ export default function App() {
                 <span className="app-user" title={session.user.email}>
                   {session.user.firstName}
                 </span>
-                <button type="button" className="nav-button" onClick={signOut}>
+                <button type="button" className="nav-button" onClick={handleSessionExpired}>
                   Sign out
                 </button>
               </>
@@ -76,7 +76,7 @@ export default function App() {
         </div>
       </header>
       <main className="container">
-        <Page />
+        <Page onSessionExpired={handleSessionExpired} />
       </main>
     </>
   )

@@ -81,14 +81,20 @@ func main() {
 	notificationsURL := getenv("NOTIFICATIONS_SERVICE_URL", "http://localhost:8083")
 	origins := parseOrigins(getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173"))
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if len(jwtSecret) < 32 {
+		log.Fatal("JWT_SECRET must be set and at least 32 characters long")
+	}
+	secret := []byte(jwtSecret)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "service": "gateway"})
 	})
 	mux.Handle("/api/users/", proxyTo(usersURL, "/api/users"))
-	mux.Handle("/api/files/", proxyTo(filesURL, "/api/files"))
-	mux.Handle("/api/notifications/", proxyTo(notificationsURL, "/api/notifications"))
+	mux.Handle("/api/files/", requireAuth(secret, proxyTo(filesURL, "/api/files")))
+	mux.Handle("/api/notifications/", requireAuth(secret, proxyTo(notificationsURL, "/api/notifications")))
 
 	log.Printf("gateway listening on :%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, withCORS(mux, origins)))
+	log.Fatal(http.ListenAndServe(":"+port, withCORS(stripIdentity(mux), origins)))
 }
