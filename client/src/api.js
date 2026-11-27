@@ -1,18 +1,3 @@
-export async function fetchNotifications() {
-  const res = await fetch('/api/notifications/')
-  if (!res.ok) {
-    let message = 'Could not load notifications'
-    try {
-      const body = await res.json()
-      if (body.message) message = body.message
-    } catch {
-      // response was not JSON, keep the default message
-    }
-    throw new Error(message)
-  }
-  return res.json()
-}
-
 export class ApiError extends Error {
   constructor(message, { status, code, fields, body } = {}) {
     super(message)
@@ -99,4 +84,8 @@ export function changePassword(token, form) {
     { method: 'POST', body: form, token },
     'Could not change your password',
   )
+}
+
+export function fetchNotifications(token) {
+  return requestJSON('/api/notifications/', { token }, 'Could not load notifications')
 }

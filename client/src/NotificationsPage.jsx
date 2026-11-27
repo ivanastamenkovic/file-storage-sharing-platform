@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { fetchNotifications } from './api'
+import { clearSession, getSession } from './session'
 
 const TYPE_LABELS = {
   SHARED: 'Shared with you',
@@ -7,7 +8,7 @@ const TYPE_LABELS = {
   NEW_VERSION: 'New version',
 }
 
-export default function NotificationsPage() {
+export default function NotificationsPage({ onSessionExpired }) {
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -15,14 +16,27 @@ export default function NotificationsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
+
+    const session = getSession()
+    if (!session) {
+      setLoading(false)
+      onSessionExpired?.()
+      return
+    }
+
     try {
-      setNotifications(await fetchNotifications())
+      setNotifications(await fetchNotifications(session.token))
     } catch (err) {
-      setError(err.message)
+      if (err.status === 401) {
+        clearSession()
+        onSessionExpired?.()
+      } else {
+        setError(err.message)
+      }
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [onSessionExpired])
 
   useEffect(() => {
     load()
