@@ -463,3 +463,20 @@ a {
 .nav-button:hover {
   background: #f0f2f6;
 }
+
+.expired-alert {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  background: var(--danger-soft);
+  border-left: 4px solid var(--danger);
+  border-radius: 6px;
+  color: var(--danger);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.expired-alert a {
+  color: var(--danger);
+  text-decoration: underline;
+  font-weight: 600;
+}

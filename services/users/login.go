@@ -13,16 +13,16 @@ import (
 )
 
 type loginService struct {
-	users          *userStore
-	challenges     *challengeStore
-	mailer         *smtpMailer
-	otpTTL         time.Duration
-	otpMaxAttempts int
-	jwtSecret      []byte
-	sessionTTL     time.Duration
-	passwordMaxAge time.Duration
+	users                  *userStore
+	challenges             *challengeStore
+	mailer                 *smtpMailer
+	otpTTL                 time.Duration
+	otpMaxAttempts         int
+	jwtSecret              []byte
+	sessionTTL             time.Duration
+	passwordMaxAge         time.Duration
 	passwordExpiredLockout time.Duration
-	dummyHash []byte
+	dummyHash              []byte
 }
 
 type loginRequest struct {
@@ -102,7 +102,12 @@ func (s *loginService) login(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now().UTC()
 	if blockedUntil, blocked := s.expiredLockoutEnd(user, now); blocked {
-		log.Printf("login blocked for user %s: password expired", user.ID)
+		log.Printf("event=login_blocked reason=password_expired user_id=%s at=%s password_expired_at=%s blocked_until=%s",
+			user.ID,
+			now.Format(time.RFC3339),
+			user.PasswordSetAt().Add(s.passwordMaxAge).UTC().Format(time.RFC3339),
+			blockedUntil.UTC().Format(time.RFC3339),
+		)
 		writeJSON(w, http.StatusForbidden, map[string]any{
 			"error":        "PASSWORD_EXPIRED",
 			"message":      "Your password has expired and sign-in is temporarily blocked. Reset your password or recover your account with a magic link.",
