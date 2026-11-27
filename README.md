@@ -77,7 +77,6 @@ The platform is designed to provide the following functionality:
 - Review storage quota increase requests
 - Approve or reject quota requests
 
-
 ## System Architecture
 
 The application follows a **microservices architecture**, where the backend is divided into independent services, each responsible for a specific business domain.
@@ -113,11 +112,11 @@ flowchart TB
     end
 
     subgraph Storage["Data Storage"]
-        UsersDB[("Users Database<br/>Document-oriented")]
+        UsersDB[("Users Database<br/>MongoDB (document)")]
         FilesDB[("Files Database<br/>Document-oriented")]
         ObjectStore[("Object Storage")]
         SharingDB[("Sharing Database<br/>Graph-oriented")]
-        NotificationsDB[("Notifications Database<br/>Wide-column")]
+        NotificationsDB[("Notifications Database<br/>Cassandra (wide-column)")]
         Redis[("Redis Cache")]
         Elasticsearch[("Elasticsearch Index")]
     end
@@ -251,19 +250,20 @@ The project uses the following programming languages, technologies, and tools:
 
 | Component | Technology |
 |---|---|
-| Backend | Go |
-| Frontend | JavaScript, CSS |
-| API Communication | REST |
-| API Gateway | Go |
-| Users Database | Document-oriented database |
-| Files Database | Document-oriented database |
-| Sharing Database | Graph database |
-| Notifications Database | Wide-column database |
-| File Storage | Object storage |
-| Caching | Redis |
-| File Search | Elasticsearch |
-| Containerization | Docker |
-| Container Orchestration | Kubernetes |
+| Backend and API Gateway | Go |
+| Frontend | React, Vite, JavaScript, CSS |
+| API Communication | REST (JSON) |
+| Authentication | JWT (HS256), bcrypt password hashing, email OTP |
+| Users Database | MongoDB |
+| Notifications Database | Apache Cassandra |
+| Files Database | Document-oriented database (planned) |
+| Sharing Database | Graph database (planned) |
+| File Storage | Object storage (planned) |
+| Caching | Redis (planned) |
+| File Search | Elasticsearch (planned) |
+| Local email testing | Mailpit |
+| Containerization | Docker, Docker Compose |
+| Container Orchestration | Kubernetes (planned) |
 
 ## Current Status
 
@@ -272,17 +272,15 @@ Implementation is ongoing. The following table tracks the development status of 
 | Component | Status |
 |---|---|
 | Client Application | In Progress |
-| API Gateway | Planned |
-| Users Service | Planned |
+| API Gateway | In Progress (routing, JWT validation, CORS) |
+| Users Service | In Progress (registration, login + OTP, password reset/change/expiry) |
 | Files Service | Planned |
 | Sharing Service | Planned |
-| Notifications Service | Planned |
+| Notifications Service | In Progress (listing endpoint, test data seeded manually) |
 | Analytics Service | Planned |
 | Database Integration | Planned |
 | Docker Configuration | Planned |
 | Kubernetes Configuration | Planned |
-
-*Update the statuses as development progresses.*
 
 ## Prerequisites
 
@@ -358,10 +356,10 @@ Each microservice manages its own data using a database suited to its specific r
 
 | Service | Database Type | Stored Data |
 |---|---|---|
-| Users | Document-oriented | User accounts, credentials, roles, profiles, storage quotas |
-| Files | Document-oriented | File and folder metadata, ownership, versions, timestamps |
-| Sharing | Graph-oriented | Users, groups, memberships, sharing relationships, permissions |
-| Notifications | Wide-column | User notifications and notification events |
+| Users | MongoDB (document) | Accounts, credentials (hashed), status, tokens, login challenges |
+| Files | Document-oriented (planned) | File and folder metadata |
+| Sharing | Graph-oriented (planned) | Users, groups, memberships, sharing relationships |
+| Notifications | Cassandra (wide-column) | User notifications, partitioned by `user_id` |
 | Analytics | To be determined | Activity history and analytical data |
 
 Additional storage components:
@@ -379,6 +377,7 @@ The repository contains the client application, API Gateway, and backend microse
 ```text
 file-storage-sharing-platform/
 ├── client/
+│   └── src/
 ├── deploy/
 ├── docs/
 ├── pkg/
@@ -397,8 +396,6 @@ file-storage-sharing-platform/
 ├── go.sum
 └── README.md
 ```
-
-*The directory structure is illustrative and should be updated to match the actual repository organization.*
 
 ## Development Workflow
 
